@@ -1,0 +1,21 @@
+{
+  "name": "sebserv",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000s\u0000e\u0000b\u0000a\u0000s\u0000_\u0000s\u0000k\u00008\u0000\r\u0000 \u0000#\u0000 \u0000s\u0000e\u0000b\u0000a\u0000s\u0000_\u0000s\u0000k\u00008\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebasunu69-flip/sebas_sk8.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sebasunu69-flip/sebas_sk8/issues"
+  },
+  "homepage": "https://github.com/sebasunu69-flip/sebas_sk8#readme"
+}
