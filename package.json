@@ -1,0 +1,12 @@
+{
+  "name": "sebserv",
+  "version": "1.0.0",
+  "description": "Servidor Node.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
