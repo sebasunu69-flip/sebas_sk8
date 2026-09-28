@@ -1,0 +1,208 @@
+<!doctype html>
+
+<html lang="es">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Laboratorio HTTP de clientes</title>
+
+    <style>
+
+        body {
+            font: 16px system-ui;
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 16px;
+        }
+
+        input, button {
+            padding: 9px;
+            margin: 5px;
+        }
+
+        li {
+            margin: 9px 0;
+        }
+
+        pre {
+            background: #eef0f5;
+            padding: 12px;
+            overflow: auto;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h1>Clientes y solicitudes HTTP</h1>
+
+    <p>Abre F12 → Network y Console. Observa cada clic.</p>
+
+    <button id="cargar">GET listar clientes</button>
+
+    <ul id="lista"></ul>
+
+    <h2>Crear cliente</h2>
+
+    <input id="nombre" placeholder="Nombre ficticio">
+
+    <input id="correo" placeholder="correo@example.com">
+
+    <button id="crear">POST crear</button>
+
+    <p id="estado"></p>
+
+    <h2>Registro visible de este cliente</h2>
+
+    <pre id="registro"></pre>
+
+    <script>
+
+        const lista = document.querySelector('#lista');
+
+        const estado = document.querySelector('#estado');
+
+        const registro = document.querySelector('#registro');
+
+
+        function log(mensaje, dato) {
+
+            const linea = `${new Date().toLocaleTimeString()} ${mensaje}`;
+
+            console.log('[NAVEGADOR]', linea, dato ?? '');
+
+            registro.textContent += linea + '\n';
+
+        }
+
+
+        async function pedir(ruta, opciones = {}) {
+
+            const metodo = opciones.method || 'GET';
+
+            log(`→ envío ${metodo} ${ruta}`, opciones.body || 'sin cuerpo');
+
+            const respuesta = await fetch(ruta, opciones);
+
+            log(`← respuesta ${respuesta.status} ${respuesta.statusText}`);
+
+            log('Content-Type: ' + respuesta.headers.get('content-type'));
+
+            const datos = await respuesta.json();
+
+            console.log('[NAVEGADOR] cuerpo recibido:', datos);
+
+            if (!respuesta.ok) throw new Error(datos.error || 'Error HTTP');
+
+            return datos;
+
+        }
+
+
+        async function cargar() {
+
+            try {
+
+                const clientes = await pedir('/api/clientes');
+
+                lista.replaceChildren();
+
+                clientes.forEach(cliente => {
+
+                    const fila = document.createElement('li');
+
+                    fila.textContent = `${cliente.id} | ${cliente.nombre} | ${cliente.correo}`;
+
+                    const borrar = document.createElement('button');
+
+                    borrar.textContent = 'DELETE borrar';
+
+                    borrar.onclick = async () => {
+
+                        try {
+
+                            await pedir(`/api/clientes/${cliente.id}`, {
+                                method: 'DELETE'
+                            });
+
+                            await cargar();
+
+                        } catch (error) {
+
+                            estado.textContent = error.message;
+
+                        }
+
+                    };
+
+                    fila.append(borrar);
+
+                    lista.append(fila);
+
+                });
+
+                estado.textContent = `${clientes.length} clientes recibidos`;
+
+            } catch (error) {
+
+                estado.textContent = error.message;
+
+                log('Error: ' + error.message);
+
+            }
+
+        }
+
+
+        document.querySelector('#cargar').onclick = cargar;
+
+
+        document.querySelector('#crear').onclick = async () => {
+
+            try {
+
+                const nombre = document.querySelector('#nombre').value;
+
+                const correo = document.querySelector('#correo').value;
+
+                await pedir('/api/clientes', {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        nombre,
+                        correo
+                    })
+
+                });
+
+                await cargar();
+
+            } catch (error) {
+
+                estado.textContent = error.message;
+
+                log('Error: ' + error.message);
+
+            }
+
+        };
+
+
+        cargar();
+
+    </script>
+
+</body>
+
+</html>
