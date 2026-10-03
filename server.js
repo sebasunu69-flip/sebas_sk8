@@ -1,25 +1,21 @@
 const http = require("http");
-
 const fs = require("fs");
-
 const path = require("path");
+
+const eventLogger = require("./bigdata/eventLogger");
 
 const PORT = 3000;
 
 const ARCHIVO_CSV = path.join(__dirname, "data", "clientes.csv");
 
 // Leer clientes desde el archivo CSV
-
 function leerClientes() {
-
     const contenido = fs.readFileSync(ARCHIVO_CSV, "utf-8");
-
     const lineas = contenido.trim().split("\n");
 
     const clientes = [];
 
     for (let i = 1; i < lineas.length; i++) {
-
         const [id, nombre, correo] = lineas[i].split(",");
 
         clientes.push({
@@ -33,15 +29,11 @@ function leerClientes() {
 }
 
 // Guardar clientes en el archivo CSV
-
 function guardarClientes(clientes) {
-
     let contenido = "id,nombre,correo\n";
 
     clientes.forEach((cliente) => {
-
         contenido += `${cliente.id},${cliente.nombre},${cliente.correo}\n`;
-
     });
 
     fs.writeFileSync(ARCHIVO_CSV, contenido, "utf-8");
@@ -49,142 +41,53 @@ function guardarClientes(clientes) {
 
 const servidor = http.createServer((req, res) => {
 
-    console.log("RECIBIENDO:", req.method, req.url);
+    // Registrar la solicitud HTTP
+    eventLogger(req, res, () => {
 
-    // Encabezados de respuesta
+        console.log("RECIBIENDO:", req.method, req.url);
 
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-
-    res.setHeader("Cache-Control", "no-store");
-
-    // GET - Servir la página web
-
-    if (req.method === "GET" && req.url === "/") {
-
-        const html = fs.readFileSync(
-            path.join(__dirname, "public", "index.html")
+        // Encabezados de respuesta
+        res.setHeader(
+            "Content-Type",
+            "application/json; charset=utf-8"
         );
 
-        res.writeHead(200, {
-            "Content-Type": "text/html; charset=utf-8",
-            "Content-Length": html.length
-        });
+        res.setHeader("Cache-Control", "no-store");
 
-        res.end(html);
+        // GET - Servir la página web
+        if (req.method === "GET" && req.url === "/") {
 
-        return;
-    }
+            const html = fs.readFileSync(
+                path.join(__dirname, "public", "index.html")
+            );
 
-    // GET - Obtener todos los clientes
+            res.writeHead(200, {
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Length": html.length
+            });
 
-    if (req.method === "GET" && req.url === "/api/clientes") {
+            res.end(html);
+            return;
+        }
 
-        const clientes = leerClientes();
+        // GET - Obtener todos los clientes
+        if (req.method === "GET" && req.url === "/api/clientes") {
 
-        res.writeHead(200);
+            const clientes = leerClientes();
 
-        res.end(JSON.stringify(clientes));
-
-        return;
-    }
-
-    // GET - Obtener un cliente por ID
-
-    if (req.method === "GET" && req.url.startsWith("/api/clientes/")) {
-
-        const id = Number(req.url.split("/")[3]);
-
-        const clientes = leerClientes();
-
-        const cliente = clientes.find(
-            (cliente) => cliente.id === id
-        );
-
-        if (!cliente) {
-
-            res.writeHead(404);
-
-            res.end(JSON.stringify({
-                error: "Cliente no encontrado"
-            }));
+            res.writeHead(200);
+            res.end(JSON.stringify(clientes));
 
             return;
         }
 
-        res.writeHead(200);
-
-        res.end(JSON.stringify(cliente));
-
-        return;
-    }
-
-    // POST - Crear un cliente
-
-    if (req.method === "POST" && req.url === "/api/clientes") {
-
-        let cuerpo = "";
-
-        req.on("data", (parte) => {
-
-            cuerpo += parte;
-
-        });
-
-        req.on("end", () => {
-
-            const datos = JSON.parse(cuerpo);
-
-            const clientes = leerClientes();
-
-            const nuevoCliente = {
-
-                id: clientes.length > 0
-                    ? Math.max(...clientes.map(cliente => cliente.id)) + 1
-                    : 1,
-
-                nombre: datos.nombre,
-
-                correo: datos.correo
-
-            };
-
-            clientes.push(nuevoCliente);
-
-            guardarClientes(clientes);
-
-            res.writeHead(201);
-
-            res.end(JSON.stringify({
-
-                mensaje: "Cliente creado correctamente",
-
-                cliente: nuevoCliente
-
-            }));
-
-        });
-
-        return;
-    }
-
-    // PUT - Actualizar un cliente
-
-    if (req.method === "PUT" && req.url.startsWith("/api/clientes/")) {
-
-        let cuerpo = "";
-
-        req.on("data", (parte) => {
-
-            cuerpo += parte;
-
-        });
-
-        req.on("end", () => {
+        // GET - Obtener un cliente por ID
+        if (
+            req.method === "GET" &&
+            req.url.startsWith("/api/clientes/")
+        ) {
 
             const id = Number(req.url.split("/")[3]);
-
-            const datos = JSON.parse(cuerpo);
-
             const clientes = leerClientes();
 
             const cliente = clientes.find(
@@ -202,80 +105,190 @@ const servidor = http.createServer((req, res) => {
                 return;
             }
 
-            cliente.nombre = datos.nombre;
+            res.writeHead(200);
+            res.end(JSON.stringify(cliente));
 
-            cliente.correo = datos.correo;
+            return;
+        }
+
+        // POST - Crear un cliente
+        if (
+            req.method === "POST" &&
+            req.url === "/api/clientes"
+        ) {
+
+            let cuerpo = "";
+
+            req.on("data", (parte) => {
+                cuerpo += parte;
+            });
+
+            req.on("end", () => {
+
+                const datos = JSON.parse(cuerpo);
+                const clientes = leerClientes();
+
+                const nuevoCliente = {
+                    id: clientes.length > 0
+                        ? Math.max(
+                            ...clientes.map(
+                                (cliente) => cliente.id
+                            )
+                        ) + 1
+                        : 1,
+
+                    nombre: datos.nombre,
+                    correo: datos.correo
+                };
+
+                clientes.push(nuevoCliente);
+                guardarClientes(clientes);
+
+                res.writeHead(201);
+
+                res.end(JSON.stringify({
+                    mensaje: "Cliente creado correctamente",
+                    cliente: nuevoCliente
+                }));
+            });
+
+            return;
+        }
+
+        // PUT - Actualizar un cliente
+        if (
+            req.method === "PUT" &&
+            req.url.startsWith("/api/clientes/")
+        ) {
+
+            let cuerpo = "";
+
+            req.on("data", (parte) => {
+                cuerpo += parte;
+            });
+
+            req.on("end", () => {
+
+                const id = Number(req.url.split("/")[3]);
+                const datos = JSON.parse(cuerpo);
+
+                const clientes = leerClientes();
+
+                const cliente = clientes.find(
+                    (cliente) => cliente.id === id
+                );
+
+                if (!cliente) {
+
+                    res.writeHead(404);
+
+                    res.end(JSON.stringify({
+                        error: "Cliente no encontrado"
+                    }));
+
+                    return;
+                }
+
+                cliente.nombre = datos.nombre;
+                cliente.correo = datos.correo;
+
+                guardarClientes(clientes);
+
+                res.writeHead(200);
+
+                res.end(JSON.stringify({
+                    mensaje: "Cliente actualizado correctamente",
+                    cliente: cliente
+                }));
+            });
+
+            return;
+        }
+
+        // DELETE - Eliminar un cliente
+        if (
+            req.method === "DELETE" &&
+            req.url.startsWith("/api/clientes/")
+        ) {
+
+            const id = Number(req.url.split("/")[3]);
+
+            const clientes = leerClientes();
+
+            const indice = clientes.findIndex(
+                (cliente) => cliente.id === id
+            );
+
+            if (indice === -1) {
+
+                res.writeHead(404);
+
+                res.end(JSON.stringify({
+                    error: "Cliente no encontrado"
+                }));
+
+                return;
+            }
+
+            const clienteEliminado =
+                clientes.splice(indice, 1)[0];
 
             guardarClientes(clientes);
 
             res.writeHead(200);
 
             res.end(JSON.stringify({
-
-                mensaje: "Cliente actualizado correctamente",
-
-                cliente: cliente
-
-            }));
-
-        });
-
-        return;
-    }
-
-    // DELETE - Eliminar un cliente
-
-    if (req.method === "DELETE" && req.url.startsWith("/api/clientes/")) {
-
-        const id = Number(req.url.split("/")[3]);
-
-        const clientes = leerClientes();
-
-        const indice = clientes.findIndex(
-            (cliente) => cliente.id === id
-        );
-
-        if (indice === -1) {
-
-            res.writeHead(404);
-
-            res.end(JSON.stringify({
-                error: "Cliente no encontrado"
+                mensaje: "Cliente eliminado correctamente",
+                cliente: clienteEliminado
             }));
 
             return;
         }
 
-        const clienteEliminado = clientes.splice(indice, 1)[0];
+        // GET - Evento de laboratorio
+        if (
+            req.method === "GET" &&
+            req.url === "/api/laboratorio/evento"
+        ) {
 
-        guardarClientes(clientes);
+            res.writeHead(200);
 
-        res.writeHead(200);
+            res.end(JSON.stringify({
+                mensaje: "Evento HTTP registrado correctamente"
+            }));
+
+            return;
+        }
+
+        // GET - Métricas Big Data
+        if (
+            req.method === "GET" &&
+            req.url === "/api/bigdata/metricas"
+        ) {
+
+            res.writeHead(200);
+
+            res.end(JSON.stringify({
+                inicio: eventLogger.metricas.inicio,
+                total: eventLogger.metricas.total
+            }));
+
+            return;
+        }
+
+        // Ruta no encontrada
+        res.writeHead(404);
 
         res.end(JSON.stringify({
-
-            mensaje: "Cliente eliminado correctamente",
-
-            cliente: clienteEliminado
-
+            error: "Ruta no encontrada"
         }));
-
-        return;
-    }
-
-    // Ruta no encontrada
-
-    res.writeHead(404);
-
-    res.end(JSON.stringify({
-        error: "Ruta no encontrada"
-    }));
-
+    });
 });
 
 servidor.listen(PORT, "0.0.0.0", () => {
 
-    console.log(`Servidor ejecutándose en el puerto ${PORT}`);
+    console.log(
+        `Servidor ejecutándose en el puerto ${PORT}`
+    );
 
 });
-
