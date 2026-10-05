@@ -1,5 +1,6 @@
-node_modules/
-
-data/raw/
-data/processed/
-data/reports/
+**/node_modules/
+frontend/dist/
+*.log
+.env
+.env.*
+backend/data/eventos.ndjson
